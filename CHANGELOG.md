@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.2.0
+
+Big Walk 1.6.0 support. 1.1.1 and older will not work on 1.6.0: the log fills with
+TypeLoadException, sign locks stop holding, and bans can stop matching. Update before
+hosting.
+
+Identifiers
+
+- 1.6.0 changed what the game calls a player's identifier. It used to be the Steam ID (or
+  PSN/Xbox id); it is now the Epic account id, and the platform id moved to a separate
+  field. Big Orb reads the platform id from that field, so bans, the chat and sign logs,
+  nametags and the dashboard are keyed the same way they always were. Your bans.json
+  and any CSVs you shared or imported keep working unchanged.
+- The handshake check (idspoof, ban gate) reads the platform id from the new handshake
+  field. The old field is gone.
+- idrotate no longer counts a player's own Epic id as a second identifier.
+- platspoof compared the reported identifier with the platform id. Those are now
+  different kinds of id by design, so the check no longer fires. epicspoof still does.
+
+Signs
+
+- The game no longer lets the client say who wrote a sign; the server works it out from
+  the connection. Big Orb's lock follows suit, so a guest can't get past a lock by
+  sending the host's identifier anymore (the 1.1.x lock trusted that value).
+- Setting and locking signs from the dashboard uses the game's new server-side text
+  setter, the same one the game uses for its own sign writes.
+- Sign log entries show the platform id, not the Epic id, for the author.
+
+Kicks
+
+- 1.6.0's own kick erases the signs the kicked player wrote that session. Big Orb's kick
+  and ban (including autobans) now do the same.
+
+Join codes
+
+- 1.6.0 join codes are letters and numbers instead of digits only. The dashboard's
+  Session Join Code pill shows and copies the new codes exactly as the game makes them.
+- The pill was blank on 1.6.0 because the game renamed its lobby manager. It reads from
+  the new one now.
+
 ## 1.1.1
 
 Hotfix for Proton/Linux users

@@ -15,7 +15,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "bigorb";
     public const string Name = "Big Orb";
-    public const string Version = "1.1.1";
+    public const string Version = "1.2.0";
 
     internal static ManualLogSource Logger;
     internal static ConfigEntry<int> Port;

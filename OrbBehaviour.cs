@@ -90,6 +90,9 @@ public class OrbBehaviour : MonoBehaviour
     internal static PlayerCharacter ById(string id)
     {
         foreach (var pc in Players())
+            if (Patches.Pid(pc.playerNetworking) == id) return pc;
+        // a raw EOS id (sign authors) still resolves
+        foreach (var pc in Players())
             if (pc.playerNetworking.identifier == id) return pc;
         return null;
     }
@@ -129,7 +132,7 @@ public class OrbBehaviour : MonoBehaviour
     // the join code shown on the in-game magic code screen
     internal static string LobbyCode()
     {
-        try { return EOSLobbyManager.Instance?.CurrentLobbyCode ?? ""; } catch { return ""; }
+        try { return EOSPrivateLobbyManager.Instance?.CurrentLobbyCode ?? ""; } catch { return ""; }
     }
 
     // the game's password check lives in HouseAuthenticator.password, the session
@@ -149,7 +152,7 @@ public class OrbBehaviour : MonoBehaviour
         foreach (var pc in Players())
         {
             var pn = pc.playerNetworking;
-            var id = pn.identifier;
+            var id = Patches.Pid(pn);
             if (string.IsNullOrEmpty(id)) continue;
             var name = Patches.Display(pn);
             var pos = pc.transform.position;
@@ -241,7 +244,7 @@ public class OrbBehaviour : MonoBehaviour
         foreach (var pc in Players())
         {
             var pn = pc.playerNetworking;
-            var id = pn.identifier ?? "";
+            var id = Patches.Pid(pn) ?? "";
             var pos = pc.transform.position;
             _tracks.TryGetValue(id, out var t);
             if (!first) sb.Append(',');
@@ -328,8 +331,8 @@ public class OrbBehaviour : MonoBehaviour
                 if (found != null)
                 {
                     var me = Local();
-                    var hostId = me != null ? me.playerNetworking.identifier : "";
-                    found.UserCode_CmdSendNewText__String__String(text ?? "", hostId);
+                    var hostId = me != null ? me.playerNetworking.identifier : "";   // raw EOS id, what the game records as author
+                    found.ServerSetText(text ?? "", hostId);
                     // editing a locked sign moves the lock
                     if (OrbState.LockedText(signNet) != null) OrbState.LockSign(signNet, found.gameObject.name, text ?? "");
                     OrbState.AddEvent("signset", null, "host",
@@ -347,9 +350,9 @@ public class OrbBehaviour : MonoBehaviour
                 try { current = found.networkedText; } catch { }
                 var lockText = text ?? current ?? "";
                 var me = Local();
-                var hostId = me != null ? me.playerNetworking.identifier : "";
+                var hostId = me != null ? me.playerNetworking.identifier : "";   // raw EOS id, what the game records as author
                 // push the locked text if the sign doesn't already show it
-                if (lockText != current) found.UserCode_CmdSendNewText__String__String(lockText, hostId);
+                if (lockText != current) found.ServerSetText(lockText, hostId);
                 string lkey = "sign"; try { lkey = found.gameObject.name; } catch { }
                 OrbState.LockSign(lockNet, lkey, lockText);
                 OrbState.AddEvent("signlock", null, "host", $"locked sign {lockNet} ({lkey}) as \"{lockText}\"");
@@ -410,7 +413,7 @@ public class OrbBehaviour : MonoBehaviour
         {
             var pn = pc.playerNetworking;
             if (pn.isLocalPlayer) continue;
-            var id = pn.identifier;
+            var id = Patches.Pid(pn);
             if (string.IsNullOrEmpty(id)) continue;
             if (!_tags.TryGetValue(id, out var go) || go == null)
             {

@@ -41,6 +41,8 @@ internal static class Guard
         NetworkConnectionToClient conn = null; try { conn = pn.connectionToClient; } catch { }
         if (conn == null) return;
         lock (PendingDisconnect) { if (PendingDisconnect.ContainsKey(conn.connectionId)) return; PendingDisconnect[conn.connectionId] = Time.unscaledTime + KickGrace; }
+        // the game's own kick also clears the signs that player wrote; RPCKickUser alone does not
+        try { PeckEffectTextInput.ClearTextWrittenByAuthor(pn.identifier); } catch { }
         try { pn.RPCKickUser(conn); } catch { }
     }
 
@@ -94,7 +96,7 @@ internal static class Guard
                 if (__0 == null) return;
                 string addr = null, claimed = null, ver = null;
                 try { addr = __0.address; } catch { }
-                try { claimed = __1?.playerIdentifier; } catch { }
+                try { claimed = __1?.platformUserId; } catch { }
                 try { ver = __1?.versionNumber; } catch { }
                 OrbState.AuthSeen(__0.connectionId, addr, claimed, ver);
                 var who = OrbState.RosterName(claimed) ?? claimed ?? "?";
@@ -122,7 +124,8 @@ internal static class Guard
                 lock (IdsByAddress)
                 {
                     if (!IdsByAddress.TryGetValue(addr, out var set)) IdsByAddress[addr] = set = new HashSet<string>();
-                    set.Add(b);
+                    // an id equal to the address is the EOS id, not a second identifier
+                    if (b != addr) set.Add(b);
                     if (set.Count >= 2)
                     {
                         var detail = $"address {addr} has claimed {set.Count} identifiers: {string.Join(", ", set)}";
@@ -149,7 +152,7 @@ internal static class Guard
             {
                 var pn = pc.playerNetworking; if (pn == null || pn.isLocalPlayer) continue;
                 string id = null, addr = null, epic = null; ulong plat = 0;
-                try { id = pn.identifier; } catch { } try { addr = pn.connectionToClient?.address; } catch { }
+                try { id = Patches.Pid(pn); } catch { } try { addr = pn.connectionToClient?.address; } catch { }
                 try { epic = pn.epicUserId; } catch { } try { plat = pn.userPlatformId; } catch { }
                 if (OrbState.IsUnsetIdentifier(id) || addr == null) continue;
                 var sig = (epic ?? "") + "|" + plat;
@@ -161,7 +164,7 @@ internal static class Guard
                 else if (plat != 0 && IsNumeric(Base(id)) && plat.ToString() != Base(id))
                 {
                     string victim = null;
-                    foreach (var o in OrbBehaviour.Players()) { var on = o.playerNetworking; if (on != null && on.Pointer != pn.Pointer && Base(on.identifier) == plat.ToString()) { victim = Patches.Display(on); break; } }
+                    foreach (var o in OrbBehaviour.Players()) { var on = o.playerNetworking; if (on != null && on.Pointer != pn.Pointer && Base(Patches.Pid(on)) == plat.ToString()) { victim = Patches.Display(on); break; } }
                     Act("platspoof", id, who, $"claims identifier {id} but platform id is {plat}" + (victim != null ? $" ({victim}'s, who is connected)" : ""), addr, pn.connectionToClient);
                 }
             }
@@ -423,7 +426,7 @@ internal static class Guard
                 __1.Position = pos;
                 if (string.IsNullOrEmpty(msg) || !FakeSystem.IsMatch(msg)) return true;
                 Patches.MarkFired("chat/fake");
-                OrbState.AddAlert("fakesys", pn.identifier, Patches.Display(pn), $"chat styled as a system message, dropped: \"{msg}\"");
+                OrbState.AddAlert("fakesys", Patches.Pid(pn), Patches.Display(pn), $"chat styled as a system message, dropped: \"{msg}\"");
                 return false;
             }
             catch { return true; }
